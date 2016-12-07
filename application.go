@@ -15,6 +15,7 @@ type Application struct {
 	Port    int
 	Dir     string
 	Procs   []Proc
+	Proxies map[string]string
 	mu      sync.Mutex
 	watcher *fsnotify.Watcher
 }
@@ -54,6 +55,12 @@ func ParseConfig(dir string, startingPort *int) (apps map[string]Application) {
 				panic(err)
 			}
 
+			proxies, err := ParseProcfile(dir + "/" + domain + ".proxies")
+
+			if err == nil {
+				app.Proxies = proxies
+			}
+			
 			if hasProcfile {
 				parsed, err := ParseProcfile(destPath + "/Procfile")
 

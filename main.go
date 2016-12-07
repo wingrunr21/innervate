@@ -40,9 +40,15 @@ func main() {
 		panic(err)
 	}
 
+	log.Printf("Loaded applications:")
 	for name, app := range apps {
 		domain := name + "." + tld
-		log.Printf(" '%s' @ 'http://%s:%d'", app.Name, domain, proxyPort)
+		log.Printf("* '%s' @ 'http://%s:%d'", app.Name, domain, proxyPort)
+
+		for targetApp, path := range app.Proxies {
+			log.Printf("**  'http://%s:%d%s' -> '%s'",  domain, proxyPort, path, targetApp)
+		}
+
 		zone.Publish(domain + " 60 IN A 127.0.0.1")
 		app.StartChildren()
 	}
@@ -90,8 +96,17 @@ func getAppNameFromHost(input string) (appName string) {
 func newReverseProxy(apps *map[string]Application) *httputil.ReverseProxy {
 	director := func(req *http.Request) {
 		appName := getAppNameFromHost(req.Host)
-
 		app, ok := (*apps)[appName]
+
+		for targetAppName, path := range app.Proxies {
+			if strings.HasPrefix(req.URL.Path, path) {
+				targetApp, ok := (*apps)[targetAppName]
+				if ok {
+					app = targetApp
+					break
+				}
+			}
+		}	
 
 		if ok {
 			req.URL.Scheme = "http"
